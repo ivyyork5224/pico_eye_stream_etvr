@@ -61,6 +61,18 @@ $json = @"
 }
 "@
 [IO.File]::WriteAllText((Join-Path $dst 'module.json'), $json, (New-Object Text.UTF8Encoding $false))
+
+# Gaze smoothing settings, read when VRCFT starts. Kept on update so your tuning stays.
+$settings = Join-Path $dst 'settings.txt'
+if (-not (Test-Path $settings)) {
+    @"
+# Pico Neo 3 eye module settings. Restart VRCFaceTracking after changing them.
+# gaze_smoothing: lower = steadier when looking at one spot, but slower to settle (0.1 to 10; 0 = off)
+# gaze_speed: higher = less delay when the eyes move quickly, but a little more jitter (0 to 10)
+gaze_smoothing = 1.0
+gaze_speed = 3.0
+"@ | Set-Content -Encoding ascii $settings
+}
 Write-Host "Installed the Pico Neo 3 Eye + ETVR lids module into $dst" -ForegroundColor Green
 
 # Other eye modules grab VRCFT's eye slot first; warn about the ones we know of

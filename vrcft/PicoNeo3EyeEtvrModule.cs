@@ -8,9 +8,17 @@
 // ETVR settings this needs: OSC port 9010, "VRCFT v2" output on, pyVRCFT off.
 // It then sends /avatar/parameters/v2/EyeLidLeft and EyeLidRight (0 closed .. ~1 open).
 // While no ETVR lids arrive, Pico's own open/closed blinks are used instead.
+//
+// Gaze is smoothed with a One Euro filter: strong smoothing while the eyes hold still (hides
+// tracker jitter), little while they move fast (glances don't lag). Tune it with settings.txt
+// next to this DLL (VRCFT's CustomLibs\<module id>\), read when VRCFT starts:
+//   gaze_smoothing = 1.0    lower = steadier but laggier when still (Hz, 0.1..10)
+//   gaze_speed = 3.0        higher = less lag on fast moves (0..10)
+//   gaze_smoothing = 0 turns smoothing off.
 
 using System;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -49,6 +57,11 @@ namespace PicoNeo3EyeEtvrModule
         readonly Debounce _leftState = new Debounce(), _rightState = new Debounce();
         DateTime _lastSmooth = DateTime.UtcNow;
 
+        // One Euro gaze filter settings (see the top of the file)
+        float _gazeMinCutoff = 1.0f, _gazeBeta = 3.0f;
+        readonly OneEuro _gazeX = new OneEuro(), _gazeY = new OneEuro();
+        DateTime _lastGaze = DateTime.MinValue;
+
         // written by the ETVR thread
         volatile float _etvrLeft = 1f, _etvrRight = 1f;
         long _etvrTicks;
@@ -80,8 +93,29 @@ namespace PicoNeo3EyeEtvrModule
                 // gaze still works; lids come from Pico
                 Logger.LogWarning("Pico Neo 3 Eye: can't listen for ETVR on UDP {Port} ({Message}). Using Pico blinks.", EtvrPort, e.Message);
             }
+            LoadSettings();
             Logger.LogInformation("Pico Neo 3 Eye: listening on UDP {Port}, ETVR lids on {EtvrPort}", Port, EtvrPort);
             return (true, false);
+        }
+
+        void LoadSettings()
+        {
+            string path = Path.Combine(Path.GetDirectoryName(typeof(PicoNeo3EyeEtvrModule).Assembly.Location) ?? "", "settings.txt");
+            if (File.Exists(path))
+            {
+                foreach (string line in File.ReadAllLines(path))
+                {
+                    string[] kv = line.Split('#')[0].Split('=');
+                    if (kv.Length != 2 || !float.TryParse(kv[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float v)) continue;
+                    switch (kv[0].Trim().ToLowerInvariant())
+                    {
+                        case "gaze_smoothing": _gazeMinCutoff = Math.Clamp(v, 0f, 10f); break;
+                        case "gaze_speed": _gazeBeta = Math.Clamp(v, 0f, 10f); break;
+                    }
+                }
+            }
+            Logger.LogInformation("Pico Neo 3 Eye: gaze smoothing {Cutoff}, speed {Beta}{Off}", _gazeMinCutoff, _gazeBeta,
+                _gazeMinCutoff <= 0 ? " (off)" : "");
         }
 
         public override void Update()
@@ -155,12 +189,49 @@ namespace PicoNeo3EyeEtvrModule
             // Gaze only updates on valid frames; during a blink the eyes keep their last direction
             if (ok && gz > 0.1f)
             {
-                var gaze = new Vector2(
-                    Math.Clamp(gx / gz, -MaxTan, MaxTan),
-                    Math.Clamp(gy / gz, -MaxTan, MaxTan));
+                float x = Math.Clamp(gx / gz, -MaxTan, MaxTan);
+                float y = Math.Clamp(gy / gz, -MaxTan, MaxTan);
+                if (_gazeMinCutoff > 0)
+                {
+                    // after a gap (blink, headset off) start fresh instead of sliding from the old spot
+                    float gdt = (float)(now - _lastGaze).TotalSeconds;
+                    if (gdt > 0.25f) { _gazeX.Reset(); _gazeY.Reset(); }
+                    gdt = Math.Clamp(gdt, 0.001f, 0.1f);
+                    x = _gazeX.Filter(x, gdt, _gazeMinCutoff, _gazeBeta);
+                    y = _gazeY.Filter(y, gdt, _gazeMinCutoff, _gazeBeta);
+                }
+                _lastGaze = now;
+                var gaze = new Vector2(x, y);
                 eye.Left.Gaze = gaze;
                 eye.Right.Gaze = gaze;
             }
+        }
+
+        // One Euro filter (Casiez et al. 2012): the cutoff frequency rises with speed
+        class OneEuro
+        {
+            const float DerivCutoff = 1.0f;
+            bool _has;
+            float _x, _dx;
+
+            public void Reset() => _has = false;
+
+            public float Filter(float value, float dt, float minCutoff, float beta)
+            {
+                if (!_has) { _has = true; _x = value; _dx = 0; return value; }
+                _dx = Lerp(_dx, (value - _x) / dt, Alpha(DerivCutoff, dt));
+                float cutoff = minCutoff + beta * Math.Abs(_dx);
+                _x = Lerp(_x, value, Alpha(cutoff, dt));
+                return _x;
+            }
+
+            static float Alpha(float cutoff, float dt)
+            {
+                float tau = 1f / (2f * MathF.PI * cutoff);
+                return 1f / (1f + tau / dt);
+            }
+
+            static float Lerp(float a, float b, float t) => a + (b - a) * t;
         }
 
         void EtvrLoop()
