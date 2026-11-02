@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>PicoNeo3EyeEtvrModule</AssemblyName>
+    <RootNamespace>PicoNeo3EyeEtvrModule</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <VrcftDir Condition="'$(VrcftDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\VRCFaceTracking</VrcftDir>
+  </PropertyGroup>
+
+  <!-- Compile against the installed VRCFaceTracking; don't copy its DLLs into the output -->
+  <ItemGroup>
+    <Reference Include="VRCFaceTracking.SDK">
+      <HintPath>$(VrcftDir)\VRCFaceTracking.SDK.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VRCFaceTracking.Core">
+      <HintPath>$(VrcftDir)\VRCFaceTracking.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Abstractions">
+      <HintPath>$(VrcftDir)\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

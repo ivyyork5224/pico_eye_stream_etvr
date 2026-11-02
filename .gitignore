@@ -1,0 +1,15 @@
+# personal, per-machine settings
+.headset_ip
+voice_device.txt
+
+# build output (the shipped module lives in vrcft/dist/)
+vrcft/bin/
+vrcft/obj/
+vrcft/dist/*.pdb
+vrcft/dist/*.json
+*.user
+
+# local test captures
+*.raw
+*.csv
+logs/
