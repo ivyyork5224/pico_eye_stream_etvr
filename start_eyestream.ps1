@@ -137,6 +137,16 @@ if ($awake -and ($log -notmatch 'StartEyeTracking' -or $log -match 'no new frame
     exit 1
 }
 
+# EyeTrackVR left at its defaults sends its own gaze straight to VRChat (OSC port 9000). That fights
+# this gaze and makes the eyes jitter. The eyelids version needs it on port 9010 (Set Up EyeTrackVR.cmd).
+$etvrSettings = 'C:\Program Files (x86)\EyeTrackVR\eyetrack_settings.json'
+if ((Get-Process eyetrackapp -ErrorAction SilentlyContinue) -and (Test-Path $etvrSettings)) {
+    $etvrPort = try { ([IO.File]::ReadAllText($etvrSettings) | ConvertFrom-Json).settings.gui_osc_port } catch { $null }
+    if ($etvrPort -eq 9000) {
+        Say "Eye Track V R is sending its own gaze to V R Chat, which makes the eyes jitter. Close it, or set its O S C port to 9010 for the eyelids version."
+    }
+}
+
 $procId = & $adb shell "pidof eyestream"
 if ($procId -and -not $awake) {
     Say "Eye tracking is ready and starts when you put the headset on. You can unplug the U S B cable."
