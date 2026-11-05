@@ -131,8 +131,8 @@ EyeTrackVR talks to the module on the same PC (127.0.0.1), so that part needs no
 
 ## Part 2: every session
 
-1. Turn on the headset.
-   **If it was rebooted, plug in USB first**, because adb over Wi-Fi usually switches off on reboot.
+1. Turn on the headset. After a reboot, try without the cable first: many headsets keep adb over Wi-Fi on.
+   If Start says it can't reach the headset, plug in USB and run it again (see Troubleshooting).
 2. Double-click **`Start Eye Tracking + Cameras.cmd`**.
    - It finds the headset, switches adb to Wi-Fi, starts the gaze sender and the eye cameras, and opens a window
      with the camera addresses ("no picture yet" there just means the headset is asleep).
@@ -150,7 +150,7 @@ To stop them early, run **`Stop Eye Tracking.cmd`**.
 | Problem | Fix |
 |---|---|
 | "ADB was not found" | Install platform-tools (Part 1, step 1). |
-| "Headset not found" / "Can't reach the headset over Wi-Fi" | Plug in USB and run Start again. Check the "Allow USB debugging" prompt in the headset. |
+| "Headset not found" / "Can't reach the headset over Wi-Fi" | Usually after a headset reboot, on headsets that switch adb over Wi-Fi off when they restart. Plug in USB and run Start again: it switches Wi-Fi adb back on, then the cable can come out. Check the "Allow USB debugging" prompt in the headset. Also check the headset is on the same Wi-Fi as the PC. |
 | "The headset is asking for permission" | Put the headset on and accept **Allow USB debugging**, then run Start again. |
 | VRCFT shows the module but the eyes don't move | Firewall rule missing (Part 1, step 4). Or another eye module grabbed the eye slot: check VRCFT's **Output** page for `Tracking initialized via ...`. |
 | Eyes move but the lids only snap open/closed | EyeTrackVR isn't sending: VRCFT's Output says `no ETVR eyelids, using Pico blinks`. Check it's running, run `Set Up EyeTrackVR.cmd` again, and check with `python pc\osc_sniff.py 9010` (VRCFT closed) that `/avatar/parameters/v2/EyeLidLeft` arrives. |
@@ -158,7 +158,7 @@ To stop them early, run **`Stop Eye Tracking.cmd`**.
 | Eyes shake or jitter, even with strong smoothing | EyeTrackVR is back on its default settings (new PC, reinstall or update) and sends its own gaze straight to VRChat's port 9000, fighting the Tobii gaze. Run `Set Up EyeTrackVR.cmd` again (`Start Eye Tracking` warns when it sees this). Then switch avatar and back to clear lid values EyeTrackVR left in VRChat. |
 | Eyes jittery, or lag behind quick glances | Edit `settings.txt` in VRCFT's module folder (`%AppData%\VRCFaceTracking\CustomLibs\<module id>\`), then restart VRCFT. Still jittery: lower `gaze_speed` (e.g. 1.5). Laggy on quick glances: raise it (e.g. 5). VRCFT's Output page shows the values in use. |
 | Eyes never look fully open / half-closed looks too closed | Rerun EyeTrackVR's calibration. The module treats an ETVR value of 0.8 as fully open (`LidOpenAt` in `vrcft\PicoNeo3EyeEtvrModule.cs`). |
-| Sender log says `no new frames` while the headset is awake | Pico's eye service got stuck. Reboot the headset, plug in USB, run Start again. |
+| Sender log says `no new frames` while the headset is awake | Pico's eye service got stuck. Reboot the headset and run Start again (plug in USB if it can't reach the headset). |
 | Headset loses head tracking with the cameras running | Seen once. Before rebooting, run `pc\watch_headset.ps1` (or keep it running) and report its folder. |
 | VRCFT crashes on its module page | You're running the **Microsoft Store** VRCFT 5.x. Use the Steam version. |
 | PC streaming can't find the headset | Disable extra network adapters (VPNs like Hamachi, second NICs) in `ncpa.cpl`. |

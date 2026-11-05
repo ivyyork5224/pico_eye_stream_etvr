@@ -1,7 +1,7 @@
 # Starts the eye tracking sender on the Pico Neo 3 Pro Eye.
 #   powershell -ExecutionPolicy Bypass -File start_eyestream.ps1
-# After a headset reboot, plug in USB first: this turns Wi-Fi adb back on,
-# then the cable can be unplugged.
+# Works over Wi-Fi. If it can't reach the headset (some headsets switch Wi-Fi adb off when they
+# reboot), plug in USB and run it again: that turns Wi-Fi adb back on, then the cable can come out.
 # -Stop stops the sender (and the eye cameras) instead.
 # -Cameras also starts eyecam: the infrared eye camera streams for Baballonia / EyeTrackVR
 #   (left http://<headset>:8080/  right http://<headset>:8081/).
@@ -132,7 +132,7 @@ Start-Sleep 6
 $log = (& $adb shell "cat /data/local/tmp/eyestream.log") -join "`n"
 $awake = (& $adb shell "dumpsys power | grep mWakefulness=") -match 'Awake'
 if ($awake -and ($log -notmatch 'StartEyeTracking' -or $log -match 'no new frames')) {
-    Say "Pico's eye tracking service on the headset is stuck. Please reboot the headset, plug in U S B, and run this again."
+    Say "Pico's eye tracking service on the headset is stuck. Please reboot the headset and run this again."
     Write-Host $log
     exit 1
 }
